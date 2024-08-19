@@ -3,7 +3,8 @@ import Graphic from './components/Graphic';
 
 function App() {
   return (
-    <div>
+    <div className="container">
+      <h1>Biodataset clustering</h1>
       <Graphic />
     </div>
   );

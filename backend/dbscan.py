@@ -1,5 +1,6 @@
+import json
 import pandas as pd
-from sklearn.cluster import KMeans
+from sklearn.cluster import DBSCAN, KMeans
 from sklearn.metrics import silhouette_score
 import umap
 import numpy as np
@@ -43,26 +44,14 @@ df = pd.DataFrame(data=df, columns=columns)
 X2 = df.to_numpy()
 
 #! predict
-bestK = 2
-maxSil = -2
-for k in range(2, 11):
-  kmeans = KMeans(n_clusters = k).fit(df[columns])
-  labels = kmeans.labels_
-  result = silhouette_score(df[columns], labels, metric = 'euclidean')
-  if result > maxSil:
-     maxSil = result 
-     bestK = k
-
-km = KMeans(n_clusters=k) 
-y2 = km.fit_predict(df[columns]) 
+dbscan = DBSCAN(eps=0.5, min_samples=14).fit(df[columns])
 
 # ! UMAP adjustment
 umap_model = umap.UMAP(n_components=2, random_state=42)
 X_umap = umap_model.fit_transform(X2) 
 
-# Visualize
-plt.figure(figsize=(10, 8))
-plt.scatter(X_umap[:, 0], X_umap[:, 1], c=y2, cmap='inferno', s=50, alpha=0.7)
-plt.colorbar(label='Clases')
-plt.title('Reducción de dimensionalidad con UMAP')
-plt.show()
+umap_df = pd.DataFrame(data=X_umap, columns=['UMAP1', 'UMAP2'])
+umap_df['cluster'] = dbscan.labels_
+json_data = umap_df.to_dict(orient='records')
+with open('dbscan.json', 'w') as f:
+    json.dump(json_data, f)
