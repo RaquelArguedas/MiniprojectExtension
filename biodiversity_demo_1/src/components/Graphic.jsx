@@ -32,8 +32,8 @@ const Graphic = () => {
     const newYScale = transform.rescaleY(yScale);
 
     svg.selectAll("circle")
-      .attr("cx", d => newXScale(d.UMAP1))
-      .attr("cy", d => newYScale(d.UMAP2));
+      .attr("cx", d => newXScale(d.x))
+      .attr("cy", d => newYScale(d.y));
 
     svg.select(".x-axis").call(xAxis.scale(newXScale));
     svg.select(".y-axis").call(yAxis.scale(newYScale));
@@ -45,29 +45,29 @@ const Graphic = () => {
       svg.selectAll(".x-axis").remove();
       svg.selectAll(".y-axis").remove();
       svg.selectAll(".y-axis").remove();
-      svg.selectAll("text").remove();
+      // svg.selectAll("text").remove(); // TODO porque esto hace que se caiga 
       
       xScale = d3.scaleLinear()
-        .domain([d3.min(data, d => d.UMAP1), d3.max(data, d => d.UMAP1)])
+        .domain([d3.min(data, d => d.x), d3.max(data, d => d.x)])
         .range([margin.left, width - margin.right]);
 
       yScale = d3.scaleLinear()
-        .domain([d3.min(data, d => d.UMAP2), d3.max(data, d => d.UMAP2)])
+        .domain([d3.min(data, d => d.y), d3.max(data, d => d.y)])
         .range([height - margin.bottom, margin.top]);
 
       svg.selectAll("circle")
         .data(data)
         .enter()
         .append("circle")
-        .attr("cx", d => xScale(d.UMAP1))
-        .attr("cy", d => yScale(d.UMAP2))
+        .attr("cx", d => xScale(d.x))
+        .attr("cy", d => yScale(d.y))
         .attr("r", 4)
         .attr("fill", d => colorScale(d.cluster))
         .on("mouseover", (event, d) => {
           tooltip.transition()
             .duration(200)
             .style("opacity", 0.9);
-          tooltip.html(`x: ${d.UMAP1}<br/>y: ${d.UMAP2}`)
+          tooltip.html(`x: ${d.x}<br/>y: ${d.y}`)
             .style("left", `${event.pageX + 5}px`)
             .style("top", `${event.pageY - 28}px`);
         })

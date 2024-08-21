@@ -54,15 +54,18 @@ for k in range(2, 11):
      maxSil = result 
      bestK = k
 
+# clustering = AgglomerativeClustering(n_clusters=bestK)
+# clustering.fit(df[columns])
 clustering = AgglomerativeClustering(n_clusters=bestK)
-clustering.fit(df[columns])
+y2 = clustering.fit_predict(df[columns]) 
 
 # ! UMAP adjustment
 umap_model = umap.UMAP(n_components=2, random_state=42)
 X_umap = umap_model.fit_transform(X2) 
 
 umap_df = pd.DataFrame(data=X_umap, columns=['UMAP1', 'UMAP2'])
-umap_df['cluster'] = clustering.labels_
+# umap_df['cluster'] = clustering.labels_
+umap_df['cluster'] = y2
 json_data = umap_df.to_dict(orient='records')
 with open('hierarquical.json', 'w') as f:
     json.dump(json_data, f)

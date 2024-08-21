@@ -44,14 +44,17 @@ df = pd.DataFrame(data=df, columns=columns)
 X2 = df.to_numpy()
 
 #! predict
-dbscan = DBSCAN(eps=0.5, min_samples=14).fit(df[columns])
+# dbscan = DBSCAN(eps=0.5, min_samples=14).fit(df[columns])
+clustering = DBSCAN(eps=0.5, min_samples=14) 
+y2 = clustering.fit_predict(df[columns]) 
 
 # ! UMAP adjustment
 umap_model = umap.UMAP(n_components=2, random_state=42)
 X_umap = umap_model.fit_transform(X2) 
 
 umap_df = pd.DataFrame(data=X_umap, columns=['UMAP1', 'UMAP2'])
-umap_df['cluster'] = dbscan.labels_
+# umap_df['cluster'] = dbscan.labels_
+umap_df['cluster'] = y2
 json_data = umap_df.to_dict(orient='records')
 with open('dbscan.json', 'w') as f:
     json.dump(json_data, f)
