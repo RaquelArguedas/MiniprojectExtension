@@ -1,54 +1,53 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import PuffLoader from "react-spinners/PuffLoader";
+import Slider from '@mui/material/Slider';
 import * as d3 from 'd3';
 
 const Graphic = () => {
   const [loading, setLoading] = useState(false);
   const svgRef = useRef(null);
-  const svg = d3.select(svgRef.current);
   const width = 1000;
   const height = 1000;
   const margin = { top: 20, right: 30, bottom: 30, left: 60 };
   
-  svg.attr('width', width).attr('height', height);
-
   const colorScale = d3.scaleOrdinal()
     .domain([0, 1, 2, -1])
     .range(['lightcoral', 'lightseagreen', 'darkorchid', 'darkorange']);
 
-  let xScale, yScale, xAxis, yAxis;
+  const updateChart = useCallback(async (type) => {
+    if (!svgRef.current) return;
 
-  const tooltip = d3.select(".tooltip");
+    let data = JSON.parse(localStorage.getItem(type));
+    if (data == null) {
+      setLoading(true);
+      const params = {}; 
+      const body = JSON.stringify({ type, params });
+      const res = await fetch(`http://127.0.0.1:5000/do_cluster`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: body,
+      });
+      data = await res.json();
+      localStorage.setItem(type, JSON.stringify(data));
+      console.log('data received');   
+    }
+    setLoading(false);
 
-  const zoom = d3.zoom()
-    .scaleExtent([1, 10])
-    .translateExtent([[0, 0], [width, height]])
-    .on('zoom', zoomed);
+    const svg = d3.select(svgRef.current);
 
-  svg.call(zoom);
-
-  function zoomed(event) {
-    const transform = event.transform;
-    const newXScale = transform.rescaleX(xScale);
-    const newYScale = transform.rescaleY(yScale);
-
-    svg.selectAll("circle")
-      .attr("cx", d => newXScale(d.x))
-      .attr("cy", d => newYScale(d.y));
-
-    svg.select(".x-axis").call(xAxis.scale(newXScale));
-    svg.select(".y-axis").call(yAxis.scale(newYScale));
-  }
-
-  const renderChart = (data) => {
-    console.log('renderChart called')
-    xScale = d3.scaleLinear()
+    const xScale = d3.scaleLinear()
       .domain([d3.min(data, d => d.x), d3.max(data, d => d.x)])
       .range([margin.left, width - margin.right]);
 
-    yScale = d3.scaleLinear()
+    const yScale = d3.scaleLinear()
       .domain([d3.min(data, d => d.y), d3.max(data, d => d.y)])
       .range([height - margin.bottom, margin.top]);
+
+    svg.selectAll("circle").remove();
+    svg.selectAll(".x-axis").remove();
+    svg.selectAll(".y-axis").remove();
 
     svg.selectAll("circle")
       .data(data)
@@ -59,67 +58,90 @@ const Graphic = () => {
       .attr("r", 4)
       .attr("fill", d => colorScale(d.cluster))
       .on("mouseover", (event, d) => {
-        tooltip.transition()
+        d3.select(".tooltip").transition()
           .duration(200)
           .style("opacity", 0.9);
-        tooltip.html(`x: ${d.x}<br/>y: ${d.y}`)
+        d3.select(".tooltip").html(`x: ${d.x}<br/>y: ${d.y}`)
           .style("left", `${event.pageX + 5}px`)
           .style("top", `${event.pageY - 28}px`);
       })
       .on("mouseout", () => {
-        tooltip.transition()
+        d3.select(".tooltip").transition()
           .duration(500)
           .style("opacity", 0);
       });
 
-    xAxis = d3.axisBottom(xScale);
-    yAxis = d3.axisLeft(yScale);
-
     svg.append("g")
       .attr("class", "x-axis")
       .attr("transform", `translate(0,${height - margin.bottom})`)
-      .call(xAxis);
+      .call(d3.axisBottom(xScale));
 
     svg.append("g")
       .attr("class", "y-axis")
       .attr("transform", `translate(${margin.left},0)`)
-      .call(yAxis);
-  };
+      .call(d3.axisLeft(yScale));
 
-  const updateChart = async (type) => {
-    svg.selectAll("circle").remove();
-    svg.selectAll(".x-axis").remove();
-    svg.selectAll(".y-axis").remove();
-    svg.selectAll(".y-axis").remove();
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 20])
+      .on('zoom', zoomed);
 
-    var data = JSON.parse(localStorage.getItem(type));
-    if (data == null) { // If the cluster is not in the cache, asks for it
-      setLoading(true)
-      const params = {}; 
-      const body = JSON.stringify({ type, params });
-      const res = await fetch(`http://127.0.0.1:5000/do_cluster`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",  // Asegúrate de que el tipo de contenido sea JSON
-        },
-        body: body,
-      });
-      data = await res.json();
-      localStorage.setItem(type, JSON.stringify(data));
-      console.log('data received')   
+    function zoomed(event) {
+      const transform = event.transform;
+      
+      const newXScale = transform.rescaleX(xScale);
+      const newYScale = transform.rescaleY(yScale);
+    
+      svg.selectAll("circle")
+        .attr("cx", d => newXScale(d.x))
+        .attr("cy", d => newYScale(d.y));
+    
+      svg.select(".x-axis").call(d3.axisBottom(newXScale));
+      svg.select(".y-axis").call(d3.axisLeft(newYScale));
     }
-    setLoading(false)
-    renderChart(data)
 
+    svg.call(zoom);
+  }, []);
+
+  const handleSlider = (event, newValue) => {
+    console.log(newValue)
+    // if (newValue<=30){
+    //   updateChart('kmeans')
+    // }else if(newValue>=30){
+    //   updateChart('dbscan')
+    // }else{
+    //   updateChart('hierarquical')
+    // }
+    // goind to one value to another make one transparent and araise the other
   }
 
   useEffect(() => {
+    if (!svgRef.current) return;
+
+    const svg = d3.select(svgRef.current)
+      .attr('width', width)
+      .attr('height', height);
+
+    svg.append("rect")
+      .attr("width", width)
+      .attr("height", height)
+      .style("fill", "none")
+      .style("pointer-events", "all");
+
     updateChart("kmeans");
-  }, []);
+
+    return () => {
+      svg.selectAll("*").remove();
+    };
+  }, [updateChart]);
 
   return (
     <>
       <div className="button-group">
+        <Slider 
+          defaultValue={0}  
+          sx={{color: '#595959'}}
+          onChange={handleSlider}
+        />
         <button onClick={() => updateChart('kmeans')}>Kmeans</button>
         <button onClick={() => updateChart('dbscan')}>DBSCAN</button>
         <button onClick={() => updateChart('hierarquical')}>Hierarchical</button>
