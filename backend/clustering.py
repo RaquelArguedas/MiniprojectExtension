@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import json
 import pandas as pd
 from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
@@ -8,6 +9,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 app = Flask(__name__)
+CORS(app)
 
 def get_records(columns):
     columns = ['gbifID']+columns
@@ -106,9 +108,12 @@ def do_umap(X2):
 
 
 @app.route('/do_cluster', methods=['POST'])
-def main():
+def do_cluster():
+    print('called the backend')
     type = request.json.get('type')
     params = request.json.get('params', {})
+
+    print(type, params)
 
     columns = ['individualCount','decimalLatitude','decimalLongitude','depth','taxonKey',
                 'kingdomKey','phylumKey','familyKey','genusKey']
