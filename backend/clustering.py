@@ -99,7 +99,7 @@ def clustering(type, df, columns, params):
                         n_jobs=params.get("n_jobs", None))
                 )
     y2 = clustering.fit_predict(df[columns]) 
-    return y2
+    return y2, bestK
 
 def do_umap(X2):
     umap_model = umap.UMAP(n_components=2, random_state=42)
@@ -110,8 +110,9 @@ def do_umap(X2):
 @app.route('/do_cluster', methods=['POST'])
 def do_cluster():
     print('called the backend')
+    print('request.json', request.json)
     type = request.json.get('type')
-    params = request.json.get('params', {})
+    params = request.json.get('paramsAPI', {})
 
     print(type, params)
 
@@ -120,13 +121,15 @@ def do_cluster():
     occur_df = get_records(columns)
 
     X2,df = standarize(occur_df[columns], columns)
-    y2 = clustering(type, df, columns, params)
+    y2, bestK = clustering(type, df, columns, params)
     
     X_umap = do_umap(X2)
 
     umap_df = pd.DataFrame(data=X_umap, columns=['x', 'y'])
     umap_df['cluster'] = y2
-    json_data = umap_df.to_dict(orient='records')
+    json_data = {}
+    json_data['cluster'] = umap_df.to_dict(orient='records')
+    json_data['bestK'] = bestK
     return jsonify(json_data)
 
 

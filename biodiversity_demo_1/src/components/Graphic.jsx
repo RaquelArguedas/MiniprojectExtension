@@ -1,27 +1,33 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import PuffLoader from "react-spinners/PuffLoader";
-import Slider from '@mui/material/Slider';
+import Inputs from "./Inputs"
 import * as d3 from 'd3';
 
 const Graphic = () => {
   const [loading, setLoading] = useState(false);
+  const [actualCluster, setActualCluster] = useState("kmeans");
+  const [bestK, setBestK] = useState(2);
   const svgRef = useRef(null);
   const width = 1000;
   const height = 1000;
   const margin = { top: 20, right: 30, bottom: 30, left: 60 };
   
   const colorScale = d3.scaleOrdinal()
-    .domain([0, 1, 2, -1])
-    .range(['lightcoral', 'lightseagreen', 'darkorchid', 'darkorange']);
+    .domain([-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    .range(['lightcoral', 'lightseagreen', 'darkorchid', 'darkorange', 'lightskyblue', 'deeppink', 'lawngreen', 'aqua', 'papayawhip', 'palegreen', 'orchid']);
 
-  const updateChart = useCallback(async (type) => {
-    if (!svgRef.current) return;
-
+  const updateChart = useCallback(async (type, paramsAPI) => {
+    const bestKName = 'bestK'+type
     let data = JSON.parse(localStorage.getItem(type));
+    setActualCluster(type)
+
+    if (paramsAPI == undefined) paramsAPI = {} 
+    if (!svgRef.current) return;
+    if (type.localeCompare('dbscan') !== 0) setBestK(parseInt(localStorage.getItem(bestKName)))
+
     if (data == null) {
       setLoading(true);
-      const params = {}; 
-      const body = JSON.stringify({ type, params });
+      const body = JSON.stringify({ type, paramsAPI });
       const res = await fetch(`http://127.0.0.1:5000/do_cluster`, {
         method: "POST",
         headers: {
@@ -29,8 +35,11 @@ const Graphic = () => {
         },
         body: body,
       });
-      data = await res.json();
+      const response = await res.json();
+      data = response['cluster']
+      setBestK(response['bestK'])
       localStorage.setItem(type, JSON.stringify(data));
+      localStorage.setItem(bestKName, JSON.stringify(response['bestK']));
       console.log('data received');   
     }
     setLoading(false);
@@ -102,16 +111,13 @@ const Graphic = () => {
     svg.call(zoom);
   }, []);
 
-  const handleSlider = (event, newValue) => {
-    console.log(newValue)
-    // if (newValue<=30){
-    //   updateChart('kmeans')
-    // }else if(newValue>=30){
-    //   updateChart('dbscan')
-    // }else{
-    //   updateChart('hierarquical')
-    // }
-    // goind to one value to another make one transparent and araise the other
+  const sendParams = (params) => {
+    console.log('params', params, typeof(params))
+    if (localStorage.getItem(actualCluster) != null) {
+      console.log('eliminando local storage')
+      localStorage.removeItem(actualCluster)
+    }
+    updateChart(actualCluster, params)
   }
 
   useEffect(() => {
@@ -135,26 +141,24 @@ const Graphic = () => {
   }, [updateChart]);
 
   return (
-    <>
-      <div className="button-group">
-        <Slider 
-          defaultValue={0}  
-          sx={{color: '#595959'}}
-          onChange={handleSlider}
-        />
-        <button onClick={() => updateChart('kmeans')}>Kmeans</button>
-        <button onClick={() => updateChart('dbscan')}>DBSCAN</button>
-        <button onClick={() => updateChart('hierarquical')}>Hierarchical</button>
+    <div className="main-group">
+      <div className="svg-group">
+        <div className="button-group">
+          <button onClick={() => updateChart('kmeans')}>Kmeans</button>
+          <button onClick={() => updateChart('dbscan')}>DBSCAN</button>
+          <button onClick={() => updateChart('hierarquical')}>Hierarchical</button>
+        </div>
+        {loading && 
+        <div className='loading-group'>
+          <p>Working on it...</p>
+          <PuffLoader size={200} />
+        </div>
+        }
+        <svg ref={svgRef}></svg>
+        <div className="tooltip" style={{ opacity: 0, position: 'absolute' }}></div>
       </div>
-      {loading && 
-      <>
-        <p>Working on it...</p>
-        <PuffLoader size={200} />
-      </>
-      }
-      <svg ref={svgRef}></svg>
-      <div className="tooltip" style={{ opacity: 0, position: 'absolute' }}></div>
-    </>
+      <Inputs cluster={actualCluster} sendParams={sendParams} bestK={bestK}/>
+    </div>
   );
 };
 
